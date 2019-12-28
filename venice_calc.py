@@ -33,7 +33,6 @@ class VeniceCalc(QMainWindow):
         self.leUserRatioH.textEdited.connect(lambda: VeniceCalc.get_results(self))
 
     def get_results(self):
-        time.sleep(.25)
         sensor = self.cbSensor.currentText()
         self.lSensorW.setText(str(sensor_modes[sensor][0]))
         self.lSensorH.setText(str(sensor_modes[sensor][1]))
@@ -45,12 +44,12 @@ class VeniceCalc(QMainWindow):
             sensor_h = sensor_modes[sensor][1]
             _scale = self.leScale.text()
             lens_factor = float(self.cbSqueeze.currentText())
-            sensor_ratio = (sensor_w / sensor_h) / lens_factor
-            user_ratio = (float(self.leUserRatioW.text()) / float(self.leUserRatioH.text())) / lens_factor
+            sensor_ratio = sensor_w / sensor_h * lens_factor
+            user_ratio = (float(self.leUserRatioW.text()) / float(self.leUserRatioH.text()))
             user_frame_w = user_max_h * ((user_max_w / sensor_ratio) * (user_ratio / user_max_h))
             user_frame_h = user_max_w / ((user_ratio / sensor_ratio) * (user_max_w / user_max_h))
-            user_pixels_w = sensor_h * user_ratio
-            user_pixels_h = sensor_w / user_ratio
+            user_pixels_w = round(sensor_w * user_frame_w / user_max_w)
+            user_pixels_h = round(sensor_h * user_frame_h / user_max_h)
             print(lens_factor)
             if _scale in ("100", "100.0", ""):
                 scale = 0
@@ -79,6 +78,7 @@ class VeniceCalc(QMainWindow):
                 self.lUserHeight.setText(f"{round(user_max_h - (user_max_h * scale / 100))}")
                 self.lUserPixelsW.setText(f"{round(sensor_w - (sensor_w * scale / 100))}")
                 self.lUserPixelsH.setText(f"{round(sensor_h - (sensor_h * scale / 100))}")
+            time.sleep(.25)
             draw_frame(self)
 
 
@@ -142,89 +142,81 @@ def draw_sensor(self):
 
 
 def draw_frame(self):
+
     _scale = self.leScale.text()
     if _scale in ("100", "100.0", ""):
-        scale = 100
+        scale = 0
         print('100% scale')
     else:
         scale = 100 - int(self.leScale.text())
 
-    sensor_ratio = int(self.lSensorW.text()) / int(self.lSensorH.text())
     user_ratio = float(self.leUserRatioW.text()) / float(self.leUserRatioH.text())
-    self.lFrameUser.show()
     sensor_cb = self.cbSensor.currentText()
-    _user_max_w = 479
-    user_max_w = _user_max_w - ((scale * _user_max_w) / 100)
-    _user_max_h = 269
-    user_max_h = _user_max_h - ((scale * _user_max_h) / 100)
-    draw_sensor_frame_w = sensor_modes[sensor_cb][2]
-    draw_sensor_frame_h = sensor_modes[sensor_cb][3]
-    new_w = round(draw_sensor_frame_h * user_ratio)
-    new_h = round(draw_sensor_frame_w / user_ratio)
-    new_x = (draw_sensor_frame_w - new_w) // 2
-    new_y = (draw_sensor_frame_h - new_h) // 2
-    max_x = round((user_max_w - (((100 - scale) * user_max_w) / 100) - draw_sensor_frame_w) // 2)
-    max_y = round((user_max_h - (((100 - scale) * user_max_h) / 100) - draw_sensor_frame_h) // 2)
-    # print(f"draw_sensor_frame_w{draw_sensor_frame_w}")
-    # print(f"draw_sensor_frame_h{draw_sensor_frame_h}")
-    # print(f"new_w{new_w}")
-    # print(f"new_h{new_h}")
-    # print(f"new_x{new_x}")
-    # print(f"new_y{new_y}")
-    # print(f"max_x{max_x}")
-    # print(f"max_y{max_y}")
+    lens_factor = float(self.cbSqueeze.currentText())
+    _draw_frame_max_w = sensor_modes[sensor_cb][2]
+    draw_frame_max_w = round(_draw_frame_max_w - (_draw_frame_max_w * scale / 100))
+    _draw_frame_max_h = sensor_modes[sensor_cb][3]
+    draw_frame_max_h = round(_draw_frame_max_h - (_draw_frame_max_h * scale / 100))
+    user_draw_max_w = 690
+    user_draw_max_h = 460
+    sensor_ratio = _draw_frame_max_w / _draw_frame_max_h
+    new_w = round(draw_frame_max_h * user_ratio / lens_factor)
+    new_h = round(draw_frame_max_w / user_ratio)
+    new_x = (draw_frame_max_w - new_w) / 2
+    new_y = (draw_frame_max_h - new_h) / 2
+    max_x = round((user_draw_max_w - draw_frame_max_w) / 2)
+    max_y = round((user_draw_max_h - draw_frame_max_h) / 2)
 
     if user_ratio == sensor_ratio:
         if sensor_cb == "6K 3:2":
-            self.lFrameUser.resize(draw_sensor_frame_w, draw_sensor_frame_h)
-            self.lFrameUser.move(0, 0)
+            self.lFrameUser.resize(draw_frame_max_w, draw_frame_max_h)
+            self.lFrameUser.move(max_x, max_y)
 
         elif sensor_cb == "4K 4:3":
-            self.lFrameUser.resize(draw_sensor_frame_w, draw_sensor_frame_h)
-            self.lFrameUser.move(new_x, 0)
+            self.lFrameUser.resize(draw_frame_max_w, draw_frame_max_h)
+            self.lFrameUser.move(new_x, max_y)
 
         else:
-            self.lFrameUser.resize(draw_sensor_frame_w, new_h)
-            self.lFrameUser.move(0, new_y)
+            self.lFrameUser.resize(draw_frame_max_w, new_h)
+            self.lFrameUser.move(max_x, new_y)
 
     elif sensor_ratio < 1.5:  # 4:3 sensor
         if sensor_ratio == user_ratio:
-            self.lFrameUser.resize(draw_sensor_frame_w, draw_sensor_frame_h)
-            self.lFrameUser.move(max_x, 0)
+            self.lFrameUser.resize(draw_frame_max_w, draw_frame_max_h)
+            self.lFrameUser.move(max_x, max_y)
 
         elif user_ratio > sensor_ratio:  # fit width
-            self.lFrameUser.resize(draw_sensor_frame_w, new_h)
-            self.lFrameUser.move(max_x, new_y)
-            print(f"4:3 sensor {max_x}, {new_y}")
+            self.lFrameUser.resize(draw_frame_max_w, new_h)
+            self.lFrameUser.move(max_x, new_y + max_y)
+            print(f"4:3 sensor {max_x}, {max_y}")
 
         elif user_ratio < sensor_ratio:  # fit height
-            self.lFrameUser.resize(new_w, draw_sensor_frame_h)
-            self.lFrameUser.move(max_x + new_x, 0)
+            self.lFrameUser.resize(new_w, draw_frame_max_h)
+            self.lFrameUser.move(max_x + new_x, max_y)
 
     elif sensor_ratio > 1.5:  # wider than 3:2 sensor
         if sensor_ratio == user_ratio:
-            self.lFrameUser.resize(draw_sensor_frame_w, draw_sensor_frame_h)
-            self.lFrameUser.move(0, max_y)
+            self.lFrameUser.resize(draw_frame_max_w, draw_frame_max_h)
+            self.lFrameUser.move(max_x, max_y)
 
         elif user_ratio > sensor_ratio:  # fit width
-            self.lFrameUser.resize(draw_sensor_frame_w, new_h)
+            self.lFrameUser.resize(draw_frame_max_w, new_h)
             self.lFrameUser.move(max_x, max_y + new_y)
-            print("wider than 3:2, fit width", draw_sensor_frame_w, new_h, max_y + new_y)
 
         elif user_ratio < sensor_ratio:  # fit height
-            self.lFrameUser.resize(new_w, draw_sensor_frame_h)
+            self.lFrameUser.resize(new_w, draw_frame_max_h)
             self.lFrameUser.move(max_x + new_x, max_y)
-            print("wider than 3:2, fit height")
-            print(f"{max_x + new_x},{max_y}")
 
     elif sensor_ratio == 1.5:
         if user_ratio > sensor_ratio:  # fit width
-            self.lFrameUser.resize(draw_sensor_frame_w, new_h)
-            self.lFrameUser.move(0, new_y)
+            self.lFrameUser.resize(draw_frame_max_w, new_h)
+            self.lFrameUser.move(max_x, new_y + max_y)
 
         elif user_ratio < sensor_ratio:  # fit height
-            self.lFrameUser.resize(new_w, draw_sensor_frame_h)
-            self.lFrameUser.move(new_x, 0)
+            self.lFrameUser.resize(new_w, draw_frame_max_h)
+            self.lFrameUser.move(new_x + max_x, max_y)
+    time.sleep(.25)
+    self.lFrameUser.show()
 
 
 if __name__ == '__main__':
